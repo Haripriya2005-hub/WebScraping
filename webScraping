@@ -1,0 +1,73 @@
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
+
+import java.io.FileWriter;
+import java.io.IOException;
+
+public class WebScraper {
+
+    private static final String URL = "http://books.toscrape.com/";
+
+    public static void main(String[] args) {
+        try {
+            // Connect to the URL and get the HTML document
+            Document doc = Jsoup.connect(URL).get();
+
+            // Select all products
+            Elements products = doc.select("article.product_pod");
+
+            // Create FileWriter for CSV output
+            FileWriter csvWriter = new FileWriter("products.csv");
+            csvWriter.append("Name,Price,Rating\n");  // CSV header
+
+            // Loop over each product and extract data
+            for (Element product : products) {
+                String name = product.select("h3 > a").attr("title");
+                String price = product.select(".price_color").text();
+
+                // Get the rating class (One, Two, etc.) and convert to number
+                String ratingClass = product.select("p.star-rating").first()
+                                            .classNames()
+                                            .stream()
+                                            .filter(cls -> !cls.equals("star-rating"))
+                                            .findFirst()
+                                            .orElse("Zero");
+                int rating = convertRating(ratingClass);
+
+                // Escape quotes in the name and wrap it in quotes for CSV
+                name = "\"" + name.replace("\"", "\"\"") + "\"";
+
+                // Write a line in CSV format
+                csvWriter.append(name)
+                         .append(",")
+                         .append(price)
+                         .append(",")
+                         .append(String.valueOf(rating))
+                         .append("\n");
+            }
+
+            csvWriter.flush();
+            csvWriter.close();
+
+            System.out.println("Scraping complete. Data saved to products.csv");
+
+        } catch (IOException e) {
+            System.err.println("Error fetching the webpage or writing the file.");
+            e.printStackTrace();
+        }
+    }
+
+    // Convert rating from word to number
+    private static int convertRating(String ratingStr) {
+        return switch (ratingStr) {
+            case "One" -> 1;
+            case "Two" -> 2;
+            case "Three" -> 3;
+            case "Four" -> 4;
+            case "Five" -> 5;
+            default -> 0;
+        };
+    }
+}
